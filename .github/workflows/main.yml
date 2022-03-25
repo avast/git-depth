@@ -1,0 +1,33 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+        - os: ubuntu-20.04
+          pkg: DEB
+        - os: windows-2019
+          pkg: ZIP
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: avakar/derive-version@v1
+      id: version
+    - name: Build
+      run: |
+        mkdir _build
+        cd _build
+        cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DGITDEPTH_VERSION="${{ steps.version.outputs.version }}" -DUSE_SSH=OFF -DBUILD_CLAR=OFF -DBUILD_SHARED_LIBS=OFF
+        cmake --build . --config RelWithDebInfo -j
+        cpack -G ${{ matrix.pkg }} -C RelWithDebInfo
+    - uses: actions/upload-artifact@v2
+      if: matrix.pkg == 'ZIP'
+      with:
+        path: _build/*.zip
